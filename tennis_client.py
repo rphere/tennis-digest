@@ -92,9 +92,9 @@ def get_finished_events(day: str) -> list[dict]:
             print(f"[debug] {tour} fixtures: first row keys = {list(rows[0].keys())}")
             statuses = sorted(set(str(r.get("event_status")) for r in rows))
             print(f"[debug] {tour} fixtures: distinct status values seen = {statuses}")
-            finished_sample = next((r for r in rows if r.get("event_status") == "Finished"), None)
-            if finished_sample:
-                print(f"[debug] {tour} fixtures: sample scores field = {finished_sample.get('scores')}")
+            for r in rows:
+                if r.get("event_status") == "Finished":
+                    print(f"[debug] {tour} fixtures: finished match scores = {r.get('scores')}")
 
         for r in rows:
             events.append({
