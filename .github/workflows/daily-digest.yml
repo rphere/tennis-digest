@@ -1,0 +1,53 @@
+name: Daily Tennis Digest
+
+on:
+  schedule:
+    # Runs 4x/day (UTC) to reduce the chance of missing matches that drop off
+    # the "finished events" feed between checks. NOTE: this version emails
+    # whatever is currently "Finished" on each run, with no memory of what
+    # was already sent — so the same match can appear in more than one
+    # day's emails if it's still showing as Finished on the next run. See
+    # README for the (optional) dedup approach if that bothers you. If
+    # you'd rather have exactly one email per day, delete three of these
+    # four cron lines and keep just one.
+    - cron: "0 6 * * *"    # ~11pm PT / 2am ET
+    - cron: "0 12 * * *"   # ~5am PT / 8am ET
+    - cron: "0 18 * * *"   # ~11am PT / 2pm ET
+    - cron: "0 23 * * *"   # ~4pm PT / 7pm ET
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab to test
+
+permissions:
+  contents: write   # needed so the workflow can commit sent_log.json back to the repo
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest
+        env:
+          RAPIDAPI_KEY: ${{ secrets.RAPIDAPI_KEY }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: python main.py
+
+      - name: Persist sent-log so later runs today don't re-email the same match
+        run: |
+          if [ -n "$(git status --porcelain sent_log.json)" ]; then
+            git config user.name "tennis-digest-bot"
+            git config user.email "actions@github.com"
+            git add sent_log.json
+            git commit -m "Update sent log [skip ci]"
+            git push
+          else
+            echo "No change to sent_log.json"
+          fi
