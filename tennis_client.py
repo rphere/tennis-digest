@@ -120,6 +120,13 @@ def get_finished_events(day: str) -> list[dict]:
             print(f"[debug] {tour} fixtures: distinct tournaments seen = {tournaments}")
 
         for r in rows:
+            if "Udvardy" in str(r.get("event_first_player", "")) + str(r.get("event_second_player", "")):
+                print(f"[debug] Udvardy/Mertens raw row: event_first_player={r.get('event_first_player')!r}, "
+                      f"event_second_player={r.get('event_second_player')!r}, "
+                      f"event_final_result={r.get('event_final_result')!r}, "
+                      f"event_winner={r.get('event_winner')!r}, scores={r.get('scores')!r}")
+
+        for r in rows:
             winner_raw = r.get("event_winner")
             winner = {"First Player": "p1", "Second Player": "p2"}.get(winner_raw)
             events.append({
