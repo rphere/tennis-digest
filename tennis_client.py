@@ -66,6 +66,19 @@ def get_top_players(tour: str, top_n: int = None) -> list[dict]:
     return rows[:top_n]
 
 
+def _format_scoreline(scores: list[dict]) -> str:
+    """Turn api-tennis.com's per-set scores (e.g. [{"score_set": "1",
+    "score_first": "6", "score_second": "3"}, ...]) into "6-3, 6-3" text."""
+    def _set_num(s):
+        try:
+            return int(s.get("score_set"))
+        except (TypeError, ValueError):
+            return 0
+
+    ordered = sorted(scores or [], key=_set_num)
+    return ", ".join(f"{s.get('score_first', '')}-{s.get('score_second', '')}" for s in ordered)
+
+
 def get_finished_events(day: str) -> list[dict]:
     """Fetch fixtures across tracked tours for `day` (YYYY-MM-DD) and filter
     to matches with event_status == "Finished"."""
@@ -79,12 +92,15 @@ def get_finished_events(day: str) -> list[dict]:
             print(f"[debug] {tour} fixtures: first row keys = {list(rows[0].keys())}")
             statuses = sorted(set(str(r.get("event_status")) for r in rows))
             print(f"[debug] {tour} fixtures: distinct status values seen = {statuses}")
+            finished_sample = next((r for r in rows if r.get("event_status") == "Finished"), None)
+            if finished_sample:
+                print(f"[debug] {tour} fixtures: sample scores field = {finished_sample.get('scores')}")
 
         for r in rows:
             events.append({
                 "participant1": r.get("event_first_player", ""),
                 "participant2": r.get("event_second_player", ""),
-                "score": r.get("event_final_result", ""),
+                "score": _format_scoreline(r.get("scores")) or r.get("event_final_result", ""),
                 "league": r.get("tournament_name", ""),
                 "tourType": tour,
                 "status": r.get("event_status", ""),

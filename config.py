@@ -6,7 +6,7 @@ Edit TOP_N to change how many ranked players (per tour) you track.
 import os
 
 # How many top-ranked players per tour to track (rankings are fetched live each run)
-TOP_N = 50
+TOP_N = 15
 
 # Tours to cover
 TOURS = ["atp", "wta"]
