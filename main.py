@@ -112,10 +112,8 @@ def tour_style(tour_type: str) -> dict:
     """Distinct visual accent per tour so men's/women's matches read
     differently at a glance, without touching the score formatting."""
     if tour_type == "wta":
-        return {"label": "WTA", "border": "#be185d", "badge_bg": "#fce7f3",
-                "badge_fg": "#9d174d", "font": "Georgia, 'Times New Roman', serif"}
-    return {"label": "ATP", "border": "#1d4ed8", "badge_bg": "#dbeafe",
-            "badge_fg": "#1e3a8a", "font": "'Courier New', Consolas, monospace"}
+        return {"label": "WTA", "border": "#be185d", "badge_bg": "#fce7f3", "badge_fg": "#9d174d"}
+    return {"label": "ATP", "border": "#1d4ed8", "badge_bg": "#dbeafe", "badge_fg": "#1e3a8a"}
 
 
 def tour_badge_html(tour_type: str) -> str:
@@ -138,7 +136,7 @@ def build_upsets_html(upsets: list[dict]) -> str:
         rows.append(f"""
         <tr>
           <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(u.get('tourType'))}{u['league']}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;font-family:{s['font']};">{winner_label} def. {loser_label}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;">{winner_label} def. {loser_label}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{u['score']}</b></td>
         </tr>
         """)
@@ -186,7 +184,7 @@ def build_email_html(matches: list[dict], upsets: list[dict], target_date: date)
         rows.append(f"""
         <tr>
           <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(m.get('tourType'))}{m['league']}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;font-family:{s['font']};">{matchup}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;">{matchup}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{m['score']}</b></td>
         </tr>
         """)
