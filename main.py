@@ -17,7 +17,7 @@ from email.mime.text import MIMEText
 from datetime import date, timedelta
 
 import config
-from tennis_client import get_top_players, get_finished_events, _debug_investigate_tournament_category
+from tennis_client import get_top_players, get_finished_events
 
 
 def name_key(name: str) -> str:
@@ -221,11 +221,6 @@ def main():
                if not getattr(config, k)]
     if missing:
         raise SystemExit(f"Missing required config/secrets: {', '.join(missing)}")
-
-    try:
-        _debug_investigate_tournament_category()
-    except Exception as e:
-        print(f"[debug] tournament category investigation failed: {e}")
 
     target_date = date.today() - timedelta(days=1)
     day = target_date.isoformat()

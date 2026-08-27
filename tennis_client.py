@@ -104,20 +104,6 @@ def _format_scoreline(scores: list[dict], winner: str) -> str:
     return ", ".join(_format_set(s) for s in ordered)
 
 
-def _debug_investigate_tournament_category():
-    """One-off: check whether get_tournaments exposes a tier field (250/500/
-    1000/Grand Slam) that get_fixtures doesn't."""
-    data = _get("get_tournaments")
-    rows = data.get("result") or []
-    print(f"[debug] get_tournaments: parsed {len(rows)} row(s)")
-    if rows:
-        print(f"[debug] get_tournaments: first row keys = {list(rows[0].keys())}")
-    for r in rows:
-        name = str(r.get("tournament_name", ""))
-        if "Monterrey" in name or "Winston" in name:
-            print(f"[debug] get_tournaments match: {r}")
-
-
 def get_finished_events(day: str) -> list[dict]:
     """Fetch fixtures across tracked tours for `day` (YYYY-MM-DD) and filter
     to matches with event_status == "Finished"."""
