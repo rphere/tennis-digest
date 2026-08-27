@@ -39,9 +39,6 @@ def _get(method: str, **params) -> dict:
     data = resp.json()
     if not data.get("success"):
         print(f"[warn] {method} returned success={data.get('success')}: {str(data)[:300]}")
-    other_keys = [k for k in data.keys() if k != "result"]
-    print(f"[debug] {method}: top-level response keys = {list(data.keys())}, non-result keys detail: "
-          f"{ {k: data[k] for k in other_keys} }")
     return data
 
 
@@ -88,8 +85,12 @@ def _format_set(s: dict) -> str:
     return f"{main1}-{main2}"
 
 
-def _format_scoreline(scores: list[dict]) -> str:
-    """Turn api-tennis.com's per-set scores array into "6-3, 6-7(6), 6-3" text."""
+def _format_scoreline(scores: list[dict], winner: str) -> str:
+    """Turn api-tennis.com's per-set scores array into "6-3, 6-7(6), 6-3" text,
+    always showing the winner's game count first per set (standard tennis
+    reporting convention), regardless of event_first_player/event_second_player
+    order. `winner` is "p1" (score_first is the winner) or "p2"; any other
+    value leaves the original score_first/score_second order untouched."""
     def _set_num(s):
         try:
             return int(s.get("score_set"))
@@ -97,6 +98,9 @@ def _format_scoreline(scores: list[dict]) -> str:
             return 0
 
     ordered = sorted(scores or [], key=_set_num)
+    if winner == "p2":
+        ordered = [{"score_first": s.get("score_second"), "score_second": s.get("score_first"),
+                    "score_set": s.get("score_set")} for s in ordered]
     return ", ".join(_format_set(s) for s in ordered)
 
 
@@ -120,19 +124,12 @@ def get_finished_events(day: str) -> list[dict]:
             print(f"[debug] {tour} fixtures: distinct tournaments seen = {tournaments}")
 
         for r in rows:
-            if "Udvardy" in str(r.get("event_first_player", "")) + str(r.get("event_second_player", "")):
-                print(f"[debug] Udvardy/Mertens raw row: event_first_player={r.get('event_first_player')!r}, "
-                      f"event_second_player={r.get('event_second_player')!r}, "
-                      f"event_final_result={r.get('event_final_result')!r}, "
-                      f"event_winner={r.get('event_winner')!r}, scores={r.get('scores')!r}")
-
-        for r in rows:
             winner_raw = r.get("event_winner")
             winner = {"First Player": "p1", "Second Player": "p2"}.get(winner_raw)
             events.append({
                 "participant1": r.get("event_first_player", ""),
                 "participant2": r.get("event_second_player", ""),
-                "score": _format_scoreline(r.get("scores")) or r.get("event_final_result", ""),
+                "score": _format_scoreline(r.get("scores"), winner) or r.get("event_final_result", ""),
                 "league": r.get("tournament_name", ""),
                 "tourType": tour,
                 "status": r.get("event_status", ""),

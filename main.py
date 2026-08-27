@@ -97,19 +97,25 @@ def filter_matches(events: list[dict], tracked: dict[str, dict]) -> list[dict]:
     return relevant
 
 
+def winner_loser(m: dict):
+    """Returns (winner_name, winner_tag, winner_pos, loser_name, loser_tag,
+    loser_pos), or None if the match's winner isn't known."""
+    if m["winner"] == "p1":
+        return (m["participant1"], m["tag1"], m["pos1"], m["participant2"], m["tag2"], m["pos2"])
+    elif m["winner"] == "p2":
+        return (m["participant2"], m["tag2"], m["pos2"], m["participant1"], m["tag1"], m["pos1"])
+    return None
+
+
 def find_upsets(matches: list[dict]) -> list[dict]:
     """A lower-ranked (or untracked) player beating a tracked higher-ranked
     one. Requires knowing the loser's rank; the winner may be untracked."""
     upsets = []
     for m in matches:
-        if m["winner"] == "p1":
-            winner_name, winner_tag, winner_pos = m["participant1"], m["tag1"], m["pos1"]
-            loser_name, loser_tag, loser_pos = m["participant2"], m["tag2"], m["pos2"]
-        elif m["winner"] == "p2":
-            winner_name, winner_tag, winner_pos = m["participant2"], m["tag2"], m["pos2"]
-            loser_name, loser_tag, loser_pos = m["participant1"], m["tag1"], m["pos1"]
-        else:
+        wl = winner_loser(m)
+        if wl is None:
             continue
+        winner_name, winner_tag, winner_pos, loser_name, loser_tag, loser_pos = wl
 
         if loser_pos is None:
             continue  # no higher-ranked player was beaten
@@ -170,12 +176,23 @@ def build_email_html(matches: list[dict], upsets: list[dict]) -> str:
 
     rows = []
     for m in matches:
-        p1_label = f"{m['participant1']} ({m['tag1']})" if m["tag1"] else m["participant1"]
-        p2_label = f"{m['participant2']} ({m['tag2']})" if m["tag2"] else m["participant2"]
+        wl = winner_loser(m)
+        if wl:
+            winner_name, winner_tag, _, loser_name, loser_tag, _ = wl
+            winner_label = f"{winner_name} ({winner_tag})" if winner_tag else winner_name
+            loser_label = f"{loser_name} ({loser_tag})" if loser_tag else loser_name
+            matchup = f"{winner_label} def. {loser_label}"
+        else:
+            # Winner unknown (shouldn't normally happen) - fall back to
+            # participant order, matching the score's participant1-first
+            # fallback order in tennis_client._format_scoreline.
+            p1_label = f"{m['participant1']} ({m['tag1']})" if m["tag1"] else m["participant1"]
+            p2_label = f"{m['participant2']} ({m['tag2']})" if m["tag2"] else m["participant2"]
+            matchup = f"{p1_label} vs {p2_label}"
         rows.append(f"""
         <tr>
           <td style="padding:8px;border-bottom:1px solid #eee;">{m['league']}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;">{p1_label} vs {p2_label}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;">{matchup}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{m['score']}</b></td>
         </tr>
         """)
