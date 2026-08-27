@@ -108,18 +108,37 @@ def find_upsets(matches: list[dict]) -> list[dict]:
     return upsets
 
 
+def tour_style(tour_type: str) -> dict:
+    """Distinct visual accent per tour so men's/women's matches read
+    differently at a glance, without touching the score formatting."""
+    if tour_type == "wta":
+        return {"label": "WTA", "border": "#be185d", "badge_bg": "#fce7f3",
+                "badge_fg": "#9d174d", "font": "Georgia, 'Times New Roman', serif"}
+    return {"label": "ATP", "border": "#1d4ed8", "badge_bg": "#dbeafe",
+            "badge_fg": "#1e3a8a", "font": "'Courier New', Consolas, monospace"}
+
+
+def tour_badge_html(tour_type: str) -> str:
+    s = tour_style(tour_type)
+    return (f'<span style="display:inline-block;padding:1px 7px;border-radius:9px;'
+            f'font-family:Arial,sans-serif;font-size:10px;font-weight:700;'
+            f'letter-spacing:0.5px;background:{s["badge_bg"]};color:{s["badge_fg"]};'
+            f'margin-right:6px;">{s["label"]}</span>')
+
+
 def build_upsets_html(upsets: list[dict]) -> str:
     if not upsets:
         return ""
 
     rows = []
     for u in upsets:
+        s = tour_style(u.get("tourType"))
         winner_label = f"{u['winner_name']} ({u['winner_tag']})" if u["winner_tag"] else u["winner_name"]
         loser_label = f"{u['loser_name']} ({u['loser_tag']})" if u["loser_tag"] else u["loser_name"]
         rows.append(f"""
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;">{u['league']}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;">{winner_label} def. {loser_label}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(u.get('tourType'))}{u['league']}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;font-family:{s['font']};">{winner_label} def. {loser_label}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{u['score']}</b></td>
         </tr>
         """)
@@ -150,6 +169,7 @@ def build_email_html(matches: list[dict], upsets: list[dict], target_date: date)
 
     rows = []
     for m in matches:
+        s = tour_style(m.get("tourType"))
         wl = winner_loser(m)
         if wl:
             winner_name, winner_tag, _, loser_name, loser_tag, _ = wl
@@ -165,8 +185,8 @@ def build_email_html(matches: list[dict], upsets: list[dict], target_date: date)
             matchup = f"{p1_label} vs {p2_label}"
         rows.append(f"""
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;">{m['league']}</td>
-          <td style="padding:8px;border-bottom:1px solid #eee;">{matchup}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(m.get('tourType'))}{m['league']}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;font-family:{s['font']};">{matchup}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{m['score']}</b></td>
         </tr>
         """)
