@@ -130,7 +130,7 @@ def send_email(html_body: str):
 
 
 def main():
-    missing = [k for k in ("RAPIDAPI_KEY", "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "RECIPIENT_EMAIL")
+    missing = [k for k in ("API_TENNIS_KEY", "GMAIL_ADDRESS", "GMAIL_APP_PASSWORD", "RECIPIENT_EMAIL")
                if not getattr(config, k)]
     if missing:
         raise SystemExit(f"Missing required config/secrets: {', '.join(missing)}")
@@ -138,7 +138,7 @@ def main():
     tracked = build_tracked_name_set()
     print(f"Tracking {len(tracked)} players across {config.TOURS}")
 
-    events = get_finished_events()
+    events = get_finished_events(date.today().isoformat())
     print(f"Fetched {len(events)} finished events")
 
     matches = filter_matches(events, tracked)

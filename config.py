@@ -11,12 +11,11 @@ TOP_N = 15
 # Tours to cover
 TOURS = ["atp", "wta"]
 
-# RapidAPI "Tennis API - ATP WTA ITF" by matchstat
-RAPIDAPI_HOST = "tennis-api-atp-wta-itf.p.rapidapi.com"
-RAPIDAPI_BASE = f"https://{RAPIDAPI_HOST}"
-
-# Pulled from environment / GitHub Actions secrets
-RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "")
+# Pulled from environment / GitHub Actions secrets.
+# NOTE: the secret is still named RAPIDAPI_KEY in GitHub (left as-is to avoid
+# an extra manual step), but it now holds an api-tennis.com APIkey, not a
+# RapidAPI key — see tennis_client.py.
+API_TENNIS_KEY = os.environ.get("RAPIDAPI_KEY", "")
 GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 RECIPIENT_EMAIL = os.environ.get("RECIPIENT_EMAIL", "")

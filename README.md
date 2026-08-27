@@ -7,37 +7,42 @@ rankings move).
 
 ## How it works
 
-- `tennis_client.py` — talks to the RapidAPI "Tennis API - ATP WTA ITF" provider
+- `tennis_client.py` — talks to the [api-tennis.com](https://api-tennis.com/documentation) API
 - `main.py` — fetches rankings, fetches finished matches, filters, builds and sends the email
 - `config.py` — tunables (top-N cutoff, tours) and where secrets are read from
 - `.github/workflows/daily-digest.yml` — runs `main.py` once a day for free via GitHub Actions
 
-**Important caveat on the data source:** this provider doesn't have a clean
-"give me yesterday's completed results" endpoint. Its date-based fixture
-endpoints only return *unplayed* matches. The bot instead reads the
-"live events" feed and keeps anything marked `Finished`.
+**Data source:** unlike the RapidAPI provider this bot used previously,
+`get_fixtures(date_start, date_stop)` on api-tennis.com returns completed
+matches for a given date with score/winner inline (`event_status ==
+"Finished"`) — a real by-date results endpoint, not a "live" feed you have
+to catch mid-transition. The workflow still runs **four times a day**
+(roughly 11pm/5am/11am/4pm PT — edit the `cron` lines in
+`.github/workflows/daily-digest.yml` to change this) since matches finish
+throughout the day and you likely want same-day emails, not one big
+end-of-day digest — but reliability no longer depends on run timing the way
+it did with the old provider.
 
-To reduce the risk of a match disappearing from that feed before you'd see
-it, the workflow runs **four times a day** (roughly 11pm/5am/11am/4pm PT —
-edit the `cron` lines in `.github/workflows/daily-digest.yml` to change
-this) rather than once. So you don't get the same match emailed to you
-multiple times as the day's runs repeat, `main.py` keeps a small
-`sent_log.json` file of what's already been reported today, and the
-workflow commits that file back to the repo after each run so the next
-run can read it. If a run finds nothing new since the last one, it sends
-no email at all (this overrides `SEND_ON_EMPTY_DAY` — that setting only
-controls the "zero matches ever today" case, not "zero *new* matches this
-run"). The log resets automatically each day since it's keyed by date.
+So you don't get the same match emailed to you multiple times as the day's
+runs repeat, `main.py` keeps a small `sent_log.json` file of what's already
+been reported today, and the workflow commits that file back to the repo
+after each run so the next run can read it. If a run finds nothing new
+since the last one, it sends no email at all (this overrides
+`SEND_ON_EMPTY_DAY` — that setting only controls the "zero matches ever
+today" case, not "zero *new* matches this run"). The log resets
+automatically each day since it's keyed by date.
 
 If you'd rather have exactly one email per day instead, delete three of
 the four `cron` lines in the workflow file and keep just one.
 
+**Note:** api-tennis.com has no permanent free tier — plans start with a
+14-day trial, then from $40/month. See their [pricing page](https://api-tennis.com/) for current rates.
+
 ## One-time setup
 
-### 1. Get a RapidAPI key
-1. Go to the [Tennis API - ATP WTA ITF listing on RapidAPI](https://rapidapi.com) and search "Tennis API ATP WTA ITF" (by matchstat).
-2. Subscribe to the **free tier**.
-3. Copy your `X-RapidAPI-Key` from the Security tab.
+### 1. Get an api-tennis.com API key
+1. Register for a free trial at [api-tennis.com](https://api-tennis.com/).
+2. Find your `APIkey` in the account dashboard.
 
 ### 2. Get a Gmail app password
 1. Turn on 2-Step Verification on the Google account you want to send from: https://myaccount.google.com/security
@@ -47,7 +52,7 @@ the four `cron` lines in the workflow file and keep just one.
 ### 3. Create the GitHub repo
 1. Create a new **private** repo and push these files to it.
 2. In the repo, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
-   - `RAPIDAPI_KEY` — from step 1
+   - `RAPIDAPI_KEY` — your api-tennis.com `APIkey` from step 1 (secret name kept as-is from an earlier provider)
    - `GMAIL_ADDRESS` — the Gmail address you're sending from
    - `GMAIL_APP_PASSWORD` — the app password from step 2
    - `RECIPIENT_EMAIL` — where the digest should be sent (can be the same address)
