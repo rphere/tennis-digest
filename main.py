@@ -46,8 +46,19 @@ def save_sent_log(keys: set):
         json.dump({date.today().isoformat(): sorted(keys)}, f)
 
 
+def name_key(name: str) -> str:
+    """Normalize a player name to "f.lastname" so rankings' full names
+    ("Jannik Sinner") match fixtures' abbreviated names ("J. Sinner")."""
+    parts = name.strip().split()
+    if not parts:
+        return ""
+    first_initial = parts[0][0].lower()
+    last = parts[-1].lower()
+    return f"{first_initial}.{last}"
+
+
 def build_tracked_name_set() -> dict[str, str]:
-    """Returns {lowercased player name: 'ATP #3' style label} for top-N in each tour."""
+    """Returns {name_key: 'ATP #3' style label} for top-N in each tour."""
     tracked = {}
     for tour in config.TOURS:
         try:
@@ -59,7 +70,7 @@ def build_tracked_name_set() -> dict[str, str]:
             name = p.get("name")
             pos = p.get("position") or p.get("singlesPosition")
             if name:
-                tracked[name.lower()] = f"{tour.upper()} #{pos}"
+                tracked[name_key(name)] = f"{tour.upper()} #{pos}"
     return tracked
 
 
@@ -68,8 +79,8 @@ def filter_matches(events: list[dict], tracked: dict[str, str]) -> list[dict]:
     for e in events:
         p1 = (e.get("participant1") or "").strip()
         p2 = (e.get("participant2") or "").strip()
-        tag1 = tracked.get(p1.lower())
-        tag2 = tracked.get(p2.lower())
+        tag1 = tracked.get(name_key(p1)) if p1 else None
+        tag2 = tracked.get(name_key(p2)) if p2 else None
         if tag1 or tag2:
             relevant.append({
                 "participant1": p1,
