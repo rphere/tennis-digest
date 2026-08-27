@@ -63,6 +63,12 @@ def get_top_players(tour: str, top_n: int = None) -> list[dict]:
     if rows:
         print(f"[debug] {tour} rankings: first row keys = {list(rows[0].keys())}")
 
+    # Some provider versions nest the player's name under a "player" object
+    # instead of putting it at the top level of the ranking row.
+    for r in rows:
+        if not r.get("name") and isinstance(r.get("player"), dict):
+            r["name"] = r["player"].get("name")
+
     rows = sorted(rows, key=lambda r: r.get("position") or r.get("singlesPosition") or 9999)
     return rows[:top_n]
 
