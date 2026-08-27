@@ -2,10 +2,10 @@
 
 Sends you a daily email, at 8:30am PT, summarizing the **previous day's**
 finished ATP/WTA matches involving whoever is currently ranked in the
-**top 100** on either tour (rankings are fetched live each run, not
-hardcoded — so the tracked list updates itself as rankings move). Also
-flags **upsets** (a lower-ranked or untracked player beating a tracked
-higher-ranked one) in their own section at the top of the email.
+**top `TOP_N`** (see `config.py`) on either tour (rankings are fetched live
+each run, not hardcoded — so the tracked list updates itself as rankings
+move). Also flags **upsets** (a lower-ranked or untracked player beating a
+tracked higher-ranked one) in their own section at the top of the email.
 
 ## How it works
 
@@ -21,16 +21,10 @@ returns completed matches for a given date with score/winner inline
 (`event_status == "Finished"`) — a real by-date results endpoint. Because
 of this, one run per day is enough; there's no need to poll multiple times
 to catch a match's fleeting "Finished" status the way an earlier version
-of this bot (built on a different provider) had to.
-
-`main.py` keeps a small `sent_log.json` file of what's already been
-reported for a given day, and the workflow commits that file back to the
-repo after each run — mainly a safety net against an accidental duplicate
-send (e.g. manually re-running the workflow) rather than something the
-normal once-a-day schedule depends on. If a run finds nothing new, it
-sends no email at all (this overrides `SEND_ON_EMPTY_DAY` — that setting
-only controls the "zero matches at all that day" case, not "zero *new*
-matches this run").
+of this bot (built on a different provider) had to. There's no dedup
+tracking between runs, since the schedule only fires once a day — if you
+add `workflow_dispatch` re-runs on top of the daily schedule for the same
+day, you'll get a duplicate email with the same matches.
 
 **Trial reminders:** api-tennis.com has no permanent free tier — plans
 start with a 14-day trial, then from $40/month. See their [pricing

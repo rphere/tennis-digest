@@ -12,9 +12,6 @@ on:
     - cron: "30 15 * * *"  # 8:30am PDT (UTC-7)
   workflow_dispatch: {}   # lets you trigger it manually from the Actions tab to test
 
-permissions:
-  contents: write   # needed so the workflow can commit sent_log.json back to the repo
-
 jobs:
   send-digest:
     runs-on: ubuntu-latest
@@ -35,23 +32,3 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py
-
-      - name: Persist sent-log so an accidental re-run doesn't re-email the same match
-        run: |
-          if [ -n "$(git status --porcelain sent_log.json)" ]; then
-            git config user.name "tennis-digest-bot"
-            git config user.email "actions@github.com"
-            git add sent_log.json
-            git commit -m "Update sent log [skip ci]"
-            # The remote may have moved since checkout (e.g. you pushed a code
-            # change while this run was in flight). Rebase our one-file commit
-            # on top of whatever's there now, then push. Retry a couple times
-            # in case of a tight race with another workflow run.
-            for attempt in 1 2 3; do
-              git pull --rebase origin main && git push && break
-              echo "Push attempt $attempt failed, retrying..."
-              sleep 5
-            done
-          else
-            echo "No change to sent_log.json"
-          fi
