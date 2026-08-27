@@ -28,6 +28,14 @@ def _headers():
     }
 
 
+def _debug_dump(label: str, resp: requests.Response):
+    """Print enough of the raw response to diagnose shape/auth problems from
+    Action logs, without dumping something enormous."""
+    print(f"[debug] {label}: HTTP {resp.status_code}")
+    snippet = resp.text[:500].replace("\n", " ")
+    print(f"[debug] {label} body (first 500 chars): {snippet}")
+
+
 def get_top_players(tour: str, top_n: int = None) -> list[dict]:
     """Fetch live singles rankings for a tour and return the top N.
 
@@ -36,12 +44,26 @@ def get_top_players(tour: str, top_n: int = None) -> list[dict]:
     top_n = top_n or config.TOP_N
     url = f"{config.RAPIDAPI_BASE}/tennis/v2/{tour}/ranking/singles"
     resp = requests.get(url, headers=_headers(), timeout=30)
+    _debug_dump(f"{tour} rankings", resp)
     resp.raise_for_status()
     data = resp.json()
 
-    # Response is typically a flat list of ranking rows; be defensive about shape.
-    rows = data if isinstance(data, list) else data.get("data", [])
-    rows = sorted(rows, key=lambda r: r.get("position") or r.get("singlesPosition", 9999))
+    # Response shape varies by provider version — try the common envelopes.
+    if isinstance(data, list):
+        rows = data
+    elif isinstance(data, dict):
+        rows = data.get("data") or data.get("result") or data.get("results") or []
+        if isinstance(rows, dict):
+            # some endpoints nest again, e.g. {"data": {"rankings": [...]}}
+            rows = rows.get("rankings") or rows.get("data") or []
+    else:
+        rows = []
+
+    print(f"[debug] {tour} rankings: parsed {len(rows)} row(s)")
+    if rows:
+        print(f"[debug] {tour} rankings: first row keys = {list(rows[0].keys())}")
+
+    rows = sorted(rows, key=lambda r: r.get("position") or r.get("singlesPosition") or 9999)
     return rows[:top_n]
 
 
@@ -49,8 +71,23 @@ def get_finished_events() -> list[dict]:
     """Fetch all currently-tracked live events and filter to status == Finished."""
     url = f"{config.RAPIDAPI_BASE}/tennis/v2/extend/api/events/live"
     resp = requests.get(url, headers=_headers(), timeout=30)
+    _debug_dump("live events", resp)
     resp.raise_for_status()
     data = resp.json()
 
-    events = data if isinstance(data, list) else data.get("data", data.get("result", []))
+    if isinstance(data, list):
+        events = data
+    elif isinstance(data, dict):
+        events = data.get("data") or data.get("result") or data.get("results") or []
+        if isinstance(events, dict):
+            events = events.get("events") or events.get("data") or []
+    else:
+        events = []
+
+    print(f"[debug] live events: parsed {len(events)} row(s)")
+    if events:
+        print(f"[debug] live events: first row keys = {list(events[0].keys())}")
+        statuses = sorted(set(str(e.get("status")) for e in events))
+        print(f"[debug] live events: distinct status values seen = {statuses}")
+
     return [e for e in events if str(e.get("status", "")).lower() == "finished"]
