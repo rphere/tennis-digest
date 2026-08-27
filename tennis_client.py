@@ -115,6 +115,10 @@ def get_finished_events(day: str) -> list[dict]:
                 print(f"[debug] {tour} fixtures: sample scores field = {finished_sample.get('scores')}")
             tournaments = sorted(set(str(r.get("tournament_name")) for r in rows))
             print(f"[debug] {tour} fixtures: distinct tournaments seen = {tournaments}")
+            for r in rows:
+                if r.get("tournament_name") == "Winston-Salem":
+                    print(f"[debug] Winston-Salem match: {r.get('event_first_player')} vs "
+                          f"{r.get('event_second_player')} — status={r.get('event_status')}")
 
         for r in rows:
             winner_raw = r.get("event_winner")
