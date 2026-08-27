@@ -1,42 +1,43 @@
 # Tennis Digest Bot
 
-Sends you a daily email of finished ATP/WTA matches involving whoever is
-currently ranked in the **top 15** on either tour (rankings are fetched
-live each run, not hardcoded — so the tracked list updates itself as
-rankings move).
+Sends you a daily email, at 8:30am PT, summarizing the **previous day's**
+finished ATP/WTA matches involving whoever is currently ranked in the
+**top 100** on either tour (rankings are fetched live each run, not
+hardcoded — so the tracked list updates itself as rankings move). Also
+flags **upsets** (a lower-ranked or untracked player beating a tracked
+higher-ranked one) in their own section at the top of the email.
 
 ## How it works
 
 - `tennis_client.py` — talks to the [api-tennis.com](https://api-tennis.com/documentation) API
-- `main.py` — fetches rankings, fetches finished matches, filters, builds and sends the email
+- `main.py` — fetches rankings, fetches yesterday's finished matches, filters, builds and sends the email
+- `trial_reminder.py` — sends a heads-up email before the api-tennis.com trial ends (see below)
 - `config.py` — tunables (top-N cutoff, tours) and where secrets are read from
 - `.github/workflows/daily-digest.yml` — runs `main.py` once a day for free via GitHub Actions
+- `.github/workflows/trial-reminder.yml` — runs `trial_reminder.py` on three fixed dates
 
-**Data source:** unlike the RapidAPI provider this bot used previously,
-`get_fixtures(date_start, date_stop)` on api-tennis.com returns completed
-matches for a given date with score/winner inline (`event_status ==
-"Finished"`) — a real by-date results endpoint, not a "live" feed you have
-to catch mid-transition. The workflow still runs **four times a day**
-(roughly 11pm/5am/11am/4pm PT — edit the `cron` lines in
-`.github/workflows/daily-digest.yml` to change this) since matches finish
-throughout the day and you likely want same-day emails, not one big
-end-of-day digest — but reliability no longer depends on run timing the way
-it did with the old provider.
+**Data source:** `get_fixtures(date_start, date_stop)` on api-tennis.com
+returns completed matches for a given date with score/winner inline
+(`event_status == "Finished"`) — a real by-date results endpoint. Because
+of this, one run per day is enough; there's no need to poll multiple times
+to catch a match's fleeting "Finished" status the way an earlier version
+of this bot (built on a different provider) had to.
 
-So you don't get the same match emailed to you multiple times as the day's
-runs repeat, `main.py` keeps a small `sent_log.json` file of what's already
-been reported today, and the workflow commits that file back to the repo
-after each run so the next run can read it. If a run finds nothing new
-since the last one, it sends no email at all (this overrides
-`SEND_ON_EMPTY_DAY` — that setting only controls the "zero matches ever
-today" case, not "zero *new* matches this run"). The log resets
-automatically each day since it's keyed by date.
+`main.py` keeps a small `sent_log.json` file of what's already been
+reported for a given day, and the workflow commits that file back to the
+repo after each run — mainly a safety net against an accidental duplicate
+send (e.g. manually re-running the workflow) rather than something the
+normal once-a-day schedule depends on. If a run finds nothing new, it
+sends no email at all (this overrides `SEND_ON_EMPTY_DAY` — that setting
+only controls the "zero matches at all that day" case, not "zero *new*
+matches this run").
 
-If you'd rather have exactly one email per day instead, delete three of
-the four `cron` lines in the workflow file and keep just one.
-
-**Note:** api-tennis.com has no permanent free tier — plans start with a
-14-day trial, then from $40/month. See their [pricing page](https://api-tennis.com/) for current rates.
+**Trial reminders:** api-tennis.com has no permanent free tier — plans
+start with a 14-day trial, then from $40/month. See their [pricing
+page](https://api-tennis.com/) for current rates. `trial_reminder.py`
+emails `RECIPIENT_EMAIL` a heads-up on three fixed calendar dates (edit
+`TRIAL_START` in that file and the `cron` lines in
+`.github/workflows/trial-reminder.yml` if you start a new trial later).
 
 ## One-time setup
 
@@ -58,7 +59,7 @@ the four `cron` lines in the workflow file and keep just one.
    - `RECIPIENT_EMAIL` — where the digest should be sent (can be the same address)
 
 ### 4. Test it
-Go to the **Actions** tab → **Daily Tennis Digest** → **Run workflow** to trigger it manually and confirm you get an email. Once that works, it'll run automatically every day at the scheduled time (12:00 UTC by default — edit the `cron` line in `.github/workflows/daily-digest.yml` to change it).
+Go to the **Actions** tab → **Daily Tennis Digest** → **Run workflow** to trigger it manually and confirm you get an email. Once that works, it'll run automatically every day at 8:30am PT (edit the `cron` line in `.github/workflows/daily-digest.yml` to change it).
 
 ## Running locally (optional, for testing)
 

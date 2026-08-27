@@ -2,18 +2,14 @@ name: Daily Tennis Digest
 
 on:
   schedule:
-    # Runs 4x/day (UTC) to reduce the chance of missing matches that drop off
-    # the "finished events" feed between checks. NOTE: this version emails
-    # whatever is currently "Finished" on each run, with no memory of what
-    # was already sent — so the same match can appear in more than one
-    # day's emails if it's still showing as Finished on the next run. See
-    # README for the (optional) dedup approach if that bothers you. If
-    # you'd rather have exactly one email per day, delete three of these
-    # four cron lines and keep just one.
-    - cron: "0 6 * * *"    # ~11pm PT / 2am ET
-    - cron: "0 12 * * *"   # ~5am PT / 8am ET
-    - cron: "0 18 * * *"   # ~11am PT / 2pm ET
-    - cron: "0 23 * * *"   # ~4pm PT / 7pm ET
+    # Once daily at 8:30am PT, summarizing the previous day's finished
+    # matches (get_fixtures returns real completed-match results by date,
+    # so there's no need to poll multiple times a day to catch a fleeting
+    # "Finished" status - see README).
+    # NOTE: GitHub Actions cron is fixed UTC and doesn't observe DST, so
+    # this drifts to ~7:30am PT once PDT ends (early November) until
+    # updated to "30 16 * * *" for PST.
+    - cron: "30 15 * * *"  # 8:30am PDT (UTC-7)
   workflow_dispatch: {}   # lets you trigger it manually from the Actions tab to test
 
 permissions:
@@ -40,7 +36,7 @@ jobs:
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
         run: python main.py
 
-      - name: Persist sent-log so later runs today don't re-email the same match
+      - name: Persist sent-log so an accidental re-run doesn't re-email the same match
         run: |
           if [ -n "$(git status --porcelain sent_log.json)" ]; then
             git config user.name "tennis-digest-bot"
@@ -50,7 +46,7 @@ jobs:
             # The remote may have moved since checkout (e.g. you pushed a code
             # change while this run was in flight). Rebase our one-file commit
             # on top of whatever's there now, then push. Retry a couple times
-            # in case of a tight race between two workflow runs.
+            # in case of a tight race with another workflow run.
             for attempt in 1 2 3; do
               git pull --rebase origin main && git push && break
               echo "Push attempt $attempt failed, retrying..."

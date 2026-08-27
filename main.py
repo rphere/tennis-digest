@@ -2,12 +2,13 @@
 Daily tennis digest bot.
 
 1. Fetch current ATP + WTA top-N singles rankings (live, not hardcoded).
-2. Fetch recently finished matches.
+2. Fetch yesterday's finished matches.
 3. Keep only matches involving a tracked (top-N) player.
 4. Email an HTML digest via Gmail SMTP.
 
 Run manually:  python main.py
-Run on a schedule: see .github/workflows/daily-digest.yml
+Run on a schedule: see .github/workflows/daily-digest.yml (once daily,
+8:30am PT, summarizing the previous day's finished matches)
 """
 
 import json
@@ -15,7 +16,7 @@ import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import date
+from datetime import date, timedelta
 
 import config
 from tennis_client import get_top_players, get_finished_events
@@ -23,27 +24,28 @@ from tennis_client import get_top_players, get_finished_events
 SENT_LOG_PATH = "sent_log.json"
 
 
-def match_key(m: dict) -> str:
-    """Stable-ish identifier for a match so repeat runs don't re-email it."""
+def match_key(m: dict, day: str) -> str:
+    """Stable-ish identifier for a match so a re-run for the same day
+    doesn't re-email it (e.g. an accidental manual re-trigger)."""
     names = sorted([m["participant1"], m["participant2"]])
-    return f"{date.today().isoformat()}|{m['league']}|{names[0]}|{names[1]}|{m['score']}"
+    return f"{day}|{m['league']}|{names[0]}|{names[1]}|{m['score']}"
 
 
-def load_sent_log() -> set:
+def load_sent_log(day: str) -> set:
     if not os.path.exists(SENT_LOG_PATH):
         return set()
     try:
         with open(SENT_LOG_PATH) as f:
             data = json.load(f)
-        # only keep today's entries so the file doesn't grow forever
-        return set(k for k in data.get(date.today().isoformat(), []))
+        # only keep this run's day so the file doesn't grow forever
+        return set(k for k in data.get(day, []))
     except Exception:
         return set()
 
 
-def save_sent_log(keys: set):
+def save_sent_log(day: str, keys: set):
     with open(SENT_LOG_PATH, "w") as f:
-        json.dump({date.today().isoformat(): sorted(keys)}, f)
+        json.dump({day: sorted(keys)}, f)
 
 
 def name_key(name: str) -> str:
@@ -163,15 +165,15 @@ def build_upsets_html(upsets: list[dict]) -> str:
     """
 
 
-def build_email_html(matches: list[dict], upsets: list[dict]) -> str:
-    today = date.today().strftime("%A, %B %d, %Y")
+def build_email_html(matches: list[dict], upsets: list[dict], target_date: date) -> str:
+    day_label = target_date.strftime("%A, %B %d, %Y")
     upsets_html = build_upsets_html(upsets)
 
     if not matches:
         return f"""
-        <h2>Tennis Digest — {today}</h2>
+        <h2>Tennis Digest — {day_label}</h2>
         {upsets_html}
-        <p>No finished matches today involving your tracked top-{config.TOP_N} ATP/WTA players.</p>
+        <p>No finished matches on {day_label} involving your tracked top-{config.TOP_N} ATP/WTA players.</p>
         """
 
     rows = []
@@ -198,7 +200,7 @@ def build_email_html(matches: list[dict], upsets: list[dict]) -> str:
         """)
 
     return f"""
-    <h2>Tennis Digest — {today}</h2>
+    <h2>Tennis Digest — {day_label}</h2>
     {upsets_html}
     <p>{len(matches)} match(es) involving current top-{config.TOP_N} ATP/WTA players finished:</p>
     <table style="border-collapse:collapse;width:100%;font-family:sans-serif;font-size:14px;">
@@ -212,9 +214,9 @@ def build_email_html(matches: list[dict], upsets: list[dict]) -> str:
     """
 
 
-def send_email(html_body: str):
+def send_email(html_body: str, target_date: date):
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"Tennis Digest — {date.today().strftime('%b %d, %Y')}"
+    msg["Subject"] = f"Tennis Digest — {target_date.strftime('%b %d, %Y')}"
     msg["From"] = config.GMAIL_ADDRESS
     msg["To"] = config.RECIPIENT_EMAIL
     msg.attach(MIMEText(html_body, "html"))
@@ -230,18 +232,22 @@ def main():
     if missing:
         raise SystemExit(f"Missing required config/secrets: {', '.join(missing)}")
 
+    target_date = date.today() - timedelta(days=1)
+    day = target_date.isoformat()
+    print(f"Summarizing matches from {day}")
+
     tracked = build_tracked_name_set()
     print(f"Tracking {len(tracked)} players across {config.TOURS}")
 
-    events = get_finished_events(date.today().isoformat())
+    events = get_finished_events(day)
     print(f"Fetched {len(events)} finished events")
 
     matches = filter_matches(events, tracked)
     print(f"{len(matches)} match(es) involve tracked players")
 
-    already_sent = load_sent_log()
-    new_matches = [m for m in matches if match_key(m) not in already_sent]
-    print(f"{len(new_matches)} of those haven't been emailed yet today")
+    already_sent = load_sent_log(day)
+    new_matches = [m for m in matches if match_key(m, day) not in already_sent]
+    print(f"{len(new_matches)} of those haven't been emailed yet")
 
     if not new_matches and not config.SEND_ON_EMPTY_DAY:
         print("Nothing new and SEND_ON_EMPTY_DAY is False — skipping email.")
@@ -254,12 +260,12 @@ def main():
     other_matches = [m for m in new_matches
                       if (m["participant1"], m["participant2"], m["league"], m["score"]) not in upset_signatures]
 
-    html = build_email_html(other_matches, upsets)
-    send_email(html)
+    html = build_email_html(other_matches, upsets, target_date)
+    send_email(html, target_date)
     print("Digest email sent.")
 
-    already_sent.update(match_key(m) for m in new_matches)
-    save_sent_log(already_sent)
+    already_sent.update(match_key(m, day) for m in new_matches)
+    save_sent_log(day, already_sent)
 
 
 if __name__ == "__main__":

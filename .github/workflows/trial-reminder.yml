@@ -1,0 +1,33 @@
+name: API Trial Ending Reminder
+
+on:
+  schedule:
+    # api-tennis.com trial started 2026-08-27, ends 2026-09-10 (14 days).
+    # Reminders at 9am PT on Sep 1 (9 days left), Sep 5 (5 days left), and
+    # the actual end date Sep 10.
+    # NOTE: fixed UTC cron, doesn't observe DST - 16:00 UTC is 9am PDT,
+    # which is correct for all three of these September dates.
+    - cron: "0 16 1 9 *"   # Sep 1, 9am PDT
+    - cron: "0 16 5 9 *"   # Sep 5, 9am PDT
+    - cron: "0 16 10 9 *"  # Sep 10, 9am PDT (trial end day)
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab to test
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send trial reminder
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+        run: python trial_reminder.py
