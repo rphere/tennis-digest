@@ -66,9 +66,27 @@ def get_top_players(tour: str, top_n: int = None) -> list[dict]:
     return rows[:top_n]
 
 
+def _format_set(s: dict) -> str:
+    """Turn one set's score_first/score_second into "6-3", or "6-7(6)" for a
+    tiebreak set. api-tennis.com encodes the tiebreak point count as a
+    decimal suffix on the game count, e.g. score_first="6.6",
+    score_second="7.8" for a 6-7 set decided 6-8 in the breaker."""
+    first = str(s.get("score_first", ""))
+    second = str(s.get("score_second", ""))
+    main1, _, tiebreak1 = first.partition(".")
+    main2, _, tiebreak2 = second.partition(".")
+    if tiebreak1 and tiebreak2:
+        try:
+            # Convention is to show the *loser's* tiebreak point count.
+            loser_tiebreak = tiebreak1 if int(main1) < int(main2) else tiebreak2
+            return f"{main1}-{main2}({loser_tiebreak})"
+        except ValueError:
+            pass
+    return f"{main1}-{main2}"
+
+
 def _format_scoreline(scores: list[dict]) -> str:
-    """Turn api-tennis.com's per-set scores (e.g. [{"score_set": "1",
-    "score_first": "6", "score_second": "3"}, ...]) into "6-3, 6-3" text."""
+    """Turn api-tennis.com's per-set scores array into "6-3, 6-7(6), 6-3" text."""
     def _set_num(s):
         try:
             return int(s.get("score_set"))
@@ -76,7 +94,7 @@ def _format_scoreline(scores: list[dict]) -> str:
             return 0
 
     ordered = sorted(scores or [], key=_set_num)
-    return ", ".join(f"{s.get('score_first', '')}-{s.get('score_second', '')}" for s in ordered)
+    return ", ".join(_format_set(s) for s in ordered)
 
 
 def get_finished_events(day: str) -> list[dict]:
@@ -92,11 +110,13 @@ def get_finished_events(day: str) -> list[dict]:
             print(f"[debug] {tour} fixtures: first row keys = {list(rows[0].keys())}")
             statuses = sorted(set(str(r.get("event_status")) for r in rows))
             print(f"[debug] {tour} fixtures: distinct status values seen = {statuses}")
-            for r in rows:
-                if r.get("event_status") == "Finished":
-                    print(f"[debug] {tour} fixtures: finished match scores = {r.get('scores')}")
+            finished_sample = next((r for r in rows if r.get("event_status") == "Finished"), None)
+            if finished_sample:
+                print(f"[debug] {tour} fixtures: sample scores field = {finished_sample.get('scores')}")
 
         for r in rows:
+            winner_raw = r.get("event_winner")
+            winner = {"First Player": "p1", "Second Player": "p2"}.get(winner_raw)
             events.append({
                 "participant1": r.get("event_first_player", ""),
                 "participant2": r.get("event_second_player", ""),
@@ -104,6 +124,7 @@ def get_finished_events(day: str) -> list[dict]:
                 "league": r.get("tournament_name", ""),
                 "tourType": tour,
                 "status": r.get("event_status", ""),
+                "winner": winner,
             })
 
     return [e for e in events if e["status"] == "Finished"]
