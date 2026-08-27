@@ -233,7 +233,11 @@ def main():
     upsets = find_upsets(new_matches)
     print(f"{len(upsets)} of those are upsets")
 
-    html = build_email_html(new_matches, upsets)
+    upset_signatures = {(u["participant1"], u["participant2"], u["league"], u["score"]) for u in upsets}
+    other_matches = [m for m in new_matches
+                      if (m["participant1"], m["participant2"], m["league"], m["score"]) not in upset_signatures]
+
+    html = build_email_html(other_matches, upsets)
     send_email(html)
     print("Digest email sent.")
 

@@ -39,6 +39,9 @@ def _get(method: str, **params) -> dict:
     data = resp.json()
     if not data.get("success"):
         print(f"[warn] {method} returned success={data.get('success')}: {str(data)[:300]}")
+    other_keys = [k for k in data.keys() if k != "result"]
+    print(f"[debug] {method}: top-level response keys = {list(data.keys())}, non-result keys detail: "
+          f"{ {k: data[k] for k in other_keys} }")
     return data
 
 
