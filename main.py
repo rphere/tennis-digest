@@ -18,6 +18,7 @@ from datetime import date, timedelta
 
 import config
 from tennis_client import get_top_players, get_finished_events
+from tournament_tiers import get_tier
 
 
 def name_key(name: str) -> str:
@@ -116,6 +117,13 @@ def tour_style(tour_type: str) -> dict:
     return {"label": "ATP", "border": "#1d4ed8", "badge_bg": "#dbeafe", "badge_fg": "#1e3a8a"}
 
 
+def league_label(tour_type: str, league: str) -> str:
+    """Tournament name with its tier appended when known, e.g.
+    "Winston-Salem (250)"."""
+    tier = get_tier(tour_type, league)
+    return f"{league} ({tier})" if tier else league
+
+
 def tour_badge_html(tour_type: str) -> str:
     s = tour_style(tour_type)
     return (f'<span style="display:inline-block;padding:1px 7px;border-radius:9px;'
@@ -135,7 +143,7 @@ def build_upsets_html(upsets: list[dict]) -> str:
         loser_label = f"{u['loser_name']} ({u['loser_tag']})" if u["loser_tag"] else u["loser_name"]
         rows.append(f"""
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(u.get('tourType'))}{u['league']}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(u.get('tourType'))}{league_label(u.get('tourType'), u['league'])}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;">{winner_label} def. {loser_label}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{u['score']}</b></td>
         </tr>
@@ -183,7 +191,7 @@ def build_email_html(matches: list[dict], upsets: list[dict], target_date: date)
             matchup = f"{p1_label} vs {p2_label}"
         rows.append(f"""
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(m.get('tourType'))}{m['league']}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(m.get('tourType'))}{league_label(m.get('tourType'), m['league'])}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;">{matchup}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{m['score']}</b></td>
         </tr>
