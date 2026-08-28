@@ -127,11 +127,10 @@ def tour_style(tour_type: str) -> dict:
 
 
 def league_label(tour_type: str, league: str, round_label: str = "") -> str:
-    """Tournament name with tier and round appended when known, e.g.
-    "Winston-Salem (250, QF)"."""
+    """Tier before the name, round after, e.g. "(500) Monterrey (R16)"."""
     tier = get_tier(tour_type, league)
-    extras = [x for x in (tier, round_label or None) if x]
-    return f"{league} ({', '.join(extras)})" if extras else league
+    label = f"({tier}) {league}" if tier else league
+    return f"{label} ({round_label})" if round_label else label
 
 
 def tour_badge_html(tour_type: str) -> str:
