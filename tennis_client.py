@@ -122,6 +122,8 @@ def get_finished_events(day: str) -> list[dict]:
                 print(f"[debug] {tour} fixtures: sample scores field = {finished_sample.get('scores')}")
             tournaments = sorted(set(str(r.get("tournament_name")) for r in rows))
             print(f"[debug] {tour} fixtures: distinct tournaments seen = {tournaments}")
+            rounds = sorted(set(str(r.get("tournament_round")) for r in rows))
+            print(f"[debug] {tour} fixtures: distinct tournament_round values seen = {rounds}")
 
         for r in rows:
             winner_raw = r.get("event_winner")
