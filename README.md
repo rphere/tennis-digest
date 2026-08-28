@@ -45,7 +45,7 @@ emails `RECIPIENT_EMAIL` a heads-up on three fixed calendar dates (edit
 3. Copy the 16-character password — you'll paste it as a secret, not your normal Gmail password.
 
 ### 3. Create the GitHub repo
-1. Create a new **private** repo and push these files to it.
+1. Create a new repo (public or private — all four secrets below live in GitHub's encrypted secret store regardless of repo visibility, never in code) and push these files to it.
 2. In the repo, go to **Settings → Secrets and variables → Actions → New repository secret** and add:
    - `RAPIDAPI_KEY` — your api-tennis.com `APIkey` from step 1 (secret name kept as-is from an earlier provider)
    - `GMAIL_ADDRESS` — the Gmail address you're sending from
