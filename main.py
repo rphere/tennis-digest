@@ -74,6 +74,7 @@ def filter_matches(events: list[dict], tracked: dict[str, dict]) -> list[dict]:
                 "pos2": t2["position"] if t2 else None,
                 "score": e.get("score", ""),
                 "league": e.get("league", ""),
+                "round": e.get("round", ""),
                 "tourType": e.get("tourType", ""),
                 "winner": e.get("winner"),
             })
@@ -125,11 +126,12 @@ def tour_style(tour_type: str) -> dict:
     return {"label": "ATP", "border": "#1d4ed8", "badge_bg": "#dbeafe", "badge_fg": "#1e3a8a"}
 
 
-def league_label(tour_type: str, league: str) -> str:
-    """Tournament name with its tier appended when known, e.g.
-    "Winston-Salem (250)"."""
+def league_label(tour_type: str, league: str, round_label: str = "") -> str:
+    """Tournament name with tier and round appended when known, e.g.
+    "Winston-Salem (250, QF)"."""
     tier = get_tier(tour_type, league)
-    return f"{league} ({tier})" if tier else league
+    extras = [x for x in (tier, round_label or None) if x]
+    return f"{league} ({', '.join(extras)})" if extras else league
 
 
 def tour_badge_html(tour_type: str) -> str:
@@ -151,7 +153,7 @@ def build_upsets_html(upsets: list[dict]) -> str:
         loser_label = f"{u['loser_name']} ({u['loser_tag']})" if u["loser_tag"] else u["loser_name"]
         rows.append(f"""
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(u.get('tourType'))}{league_label(u.get('tourType'), u['league'])}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(u.get('tourType'))}{league_label(u.get('tourType'), u['league'], u.get('round', ''))}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;">{winner_label} def. {loser_label}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{u['score']}</b></td>
         </tr>
@@ -199,7 +201,7 @@ def build_email_html(matches: list[dict], upsets: list[dict], target_date: date)
             matchup = f"{p1_label} vs {p2_label}"
         rows.append(f"""
         <tr>
-          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(m.get('tourType'))}{league_label(m.get('tourType'), m['league'])}</td>
+          <td style="padding:8px;border-bottom:1px solid #eee;border-left:3px solid {s['border']};">{tour_badge_html(m.get('tourType'))}{league_label(m.get('tourType'), m['league'], m.get('round', ''))}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;">{matchup}</td>
           <td style="padding:8px;border-bottom:1px solid #eee;"><b>{m['score']}</b></td>
         </tr>

@@ -104,6 +104,31 @@ def _format_scoreline(scores: list[dict], winner: str) -> str:
     return ", ".join(_format_set(s) for s in ordered)
 
 
+ROUND_ABBREVIATIONS = {
+    "Final": "F",
+    "Semi-finals": "SF",
+    "Quarter-finals": "QF",
+    "1/8-finals": "R16",
+    "1/16-finals": "R32",
+    "1/32-finals": "R64",
+    "1/64-finals": "R128",
+    "Round Robin": "RR",
+}
+
+
+def _parse_round(raw: str) -> str:
+    """api-tennis.com's tournament_round is "{TOUR} {Tournament} - {Round}",
+    e.g. "ATP Winston-Salem - 1/8-finals" -> "R16". Tournament names can
+    contain hyphens themselves (e.g. "Winston-Salem"), so split on the
+    LAST " - " (space-hyphen-space), not the first. Falls back to the raw
+    round text for anything not in ROUND_ABBREVIATIONS (e.g. qualifying
+    rounds) rather than dropping it silently."""
+    if not raw:
+        return ""
+    round_part = raw.rsplit(" - ", 1)[-1].strip()
+    return ROUND_ABBREVIATIONS.get(round_part, round_part)
+
+
 def get_finished_events(day: str) -> list[dict]:
     """Fetch fixtures across tracked tours for `day` (YYYY-MM-DD) and filter
     to matches with event_status == "Finished"."""
@@ -122,8 +147,6 @@ def get_finished_events(day: str) -> list[dict]:
                 print(f"[debug] {tour} fixtures: sample scores field = {finished_sample.get('scores')}")
             tournaments = sorted(set(str(r.get("tournament_name")) for r in rows))
             print(f"[debug] {tour} fixtures: distinct tournaments seen = {tournaments}")
-            rounds = sorted(set(str(r.get("tournament_round")) for r in rows))
-            print(f"[debug] {tour} fixtures: distinct tournament_round values seen = {rounds}")
 
         for r in rows:
             winner_raw = r.get("event_winner")
@@ -133,6 +156,7 @@ def get_finished_events(day: str) -> list[dict]:
                 "participant2": r.get("event_second_player", ""),
                 "score": _format_scoreline(r.get("scores"), winner) or r.get("event_final_result", ""),
                 "league": r.get("tournament_name", ""),
+                "round": _parse_round(r.get("tournament_round", "")),
                 "tourType": tour,
                 "status": r.get("event_status", ""),
                 "winner": winner,
