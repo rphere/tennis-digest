@@ -14,11 +14,19 @@ Run on a schedule: see .github/workflows/daily-digest.yml (once daily,
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import config
 from tennis_client import get_top_players, get_finished_events
 from tournament_tiers import get_tier
+
+# "Yesterday" is computed in this timezone, not the runner's system clock
+# (GitHub Actions runners use UTC). Using zoneinfo instead of a fixed UTC
+# offset also means this is correct across the PST/PDT transition without
+# manual adjustment - unlike the workflow's cron trigger time itself,
+# which GitHub Actions cron can't express in a timezone-aware way.
+LOCAL_TZ = ZoneInfo("America/Los_Angeles")
 
 
 def name_key(name: str) -> str:
@@ -230,7 +238,7 @@ def main():
     if missing:
         raise SystemExit(f"Missing required config/secrets: {', '.join(missing)}")
 
-    target_date = date.today() - timedelta(days=1)
+    target_date = datetime.now(LOCAL_TZ).date() - timedelta(days=1)
     day = target_date.isoformat()
     print(f"Summarizing matches from {day}")
 
